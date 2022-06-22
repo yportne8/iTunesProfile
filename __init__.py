@@ -1,3 +1,10 @@
+from urllib.request import Request, urlopen
+from urllib.parse import quote_plus
+import locale, json
+
+from bs4 import BeautifulSoup
+
+
 class ArtistProfiler:
     
     searchapi = "https://itunes.apple.com/search?"
@@ -69,14 +76,6 @@ class ArtistProfiler:
             return (artist, results_json)
         except Exception as e:
             print(str(e))
-     
-    def get_related(name):
-        try:
-            browseid = YTMusic().search(name)[0]["browseId"]
-            results = YTMusic().get_artist(browseid)["related"]["results"]
-            return [r["title"] for r in results]
-        except:
-            return [name]
         
     def profile(artist: str):
         try:
@@ -86,8 +85,43 @@ class ArtistProfiler:
             artist = Artist()
             artist.name = name
             artist.genres = res["genre"]
-            artist.related = ArtistProfiler.get_related(artist.name)
+            # [TODO] include artist albums & singles
             artist.tophits = [ex["name"] for ex in res["workExample"]]
             return artist
         except Exception as e:
             print(str(e))
+
+
+
+class Browser:
+
+    def __init__(self, auth_json=None):
+        self.fetch_b64 = lambda url: b64encode(urlopen(url).read().decode("utf-8"))
+        self.fetch_html = lambda url: urlopen(url).read().decode("utf-8")
+        self.fetch_iostream = lambda url: BytesIO(urlopen(url).read())
+        self.fetch_json = lambda url: json.loads(urlopen(url).read())
+        self.fetch_retrive = lambda url, path: urlretrieve(url, path)
+        self.fetch_content = lambda url: urlopen(url).read()
+        
+    @staticmethod    
+    def request(url: str):
+        conn = urlopen(Request(url, 
+            headers={"User-Agent": "Sidekick (v1.0)"}))
+        if conn.status != 200:
+            min_recognized_browser_useragent = \
+            {"User-Agent": "Firefox Android Sidekick (v1.0)"}
+            headers = min_recognized_browser_useragent
+            conn = urlopen(Request(url, headers))
+        if conn.status == 200:   
+            res = conn.read()
+            conn.close()
+        else:
+            print("Request failed.")
+            print(f"Status Code: {conn.status}")
+            conn.close()
+            return None
+        try:
+            res=json.loads(res)
+        except:
+            res=res.decode("utf-8")
+        return res
